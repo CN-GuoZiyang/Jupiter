@@ -50,7 +50,7 @@ public abstract class AbstractCache<T extends Cacheable> {
 
     // 从缓存中获取一个资源，如果不存在就尝试驱逐驱逐一个已有元素
     // 默认对元素加读锁，writeLock 为 true 时加写锁
-    protected T get(long key, boolean writeLock) throws Exception {
+    protected T get(long key) throws Exception {
         while(true) {
             lock.lock();
             if (getting.contains(key)) {
