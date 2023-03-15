@@ -13,7 +13,7 @@ public class PageImpl implements Page {
     private int using;
 
     // 实际存储的数据
-    private byte[] data;
+    protected byte[] data;
 
     // 被驱逐位
     private boolean expelled;
