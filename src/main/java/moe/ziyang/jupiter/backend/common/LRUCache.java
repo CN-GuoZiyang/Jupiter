@@ -88,8 +88,8 @@ public abstract class LRUCache<T extends Cacheable> implements CachePool<T> {
                 continue;
             }
 
-            // 尝试获取写锁进行释放
-            if (current.value.canRelease()) {
+            // 尝试进行驱逐
+            if (current.value.canExpel()) {
                 release(current);
             }
 
@@ -101,7 +101,7 @@ public abstract class LRUCache<T extends Cacheable> implements CachePool<T> {
     protected boolean tryExpelOne() {
         // 从后向前寻找可驱逐的元素
         for (Node current = dummy.prev; current != dummy; current = current.prev) {
-            if (current.value.canRelease()) {
+            if (current.value.canExpel()) {
                 release(current);
                 return true;
             }

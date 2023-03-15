@@ -9,15 +9,25 @@ public class PageImpl implements Page {
 
     private int pgno;
     private Lock writelock;
+    private boolean dirty;      // 是否是脏页
     private int using;
+
+    // 实际存储的数据
+    private byte[] data;
 
     // 被驱逐位
     private boolean expelled;
 
-    public PageImpl(int pgno) {
+    public PageImpl(int pgno, byte[] data) {
         this.pgno = pgno;
+        this.data = data;
         writelock = new ReentrantLock();
         operateLock = new ReentrantLock();
+    }
+
+    @Override
+    public long getPageNumber() {
+        return pgno;
     }
 
     @Override
@@ -62,7 +72,7 @@ public class PageImpl implements Page {
     }
 
     @Override
-    public boolean canRelease() {
+    public boolean canExpel() {
         operateLock.lock();
         try {
             if (using != 0) {
@@ -77,4 +87,22 @@ public class PageImpl implements Page {
             operateLock.unlock();
         }
     }
+
+    @Override
+    public void setDirty(boolean dirty) {
+        operateLock.lock();
+        this.dirty = dirty;
+        operateLock.unlock();
+    }
+
+    @Override
+    public boolean isDirty() {
+        return this.dirty;
+    }
+
+    @Override
+    public byte[] getData() {
+        return data;
+    }
+
 }

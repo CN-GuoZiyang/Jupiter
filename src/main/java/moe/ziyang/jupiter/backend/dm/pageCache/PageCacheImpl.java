@@ -1,11 +1,20 @@
 package moe.ziyang.jupiter.backend.dm.pageCache;
 
 import moe.ziyang.jupiter.backend.common.LRUCache;
+import moe.ziyang.jupiter.backend.dm.common.Const;
+import moe.ziyang.jupiter.backend.dm.common.Util;
 import moe.ziyang.jupiter.backend.dm.page.Page;
+import moe.ziyang.jupiter.backend.dm.page.PageImpl;
 import moe.ziyang.jupiter.common.Error;
+import moe.ziyang.jupiter.common.Panic;
 
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -15,14 +24,33 @@ public class PageCacheImpl extends LRUCache<Page> implements PageCache {
     private final Set<Long> getting;
     // 页池锁
     private Lock lock;
+    // db 文件
+    private RandomAccessFile file;
+    // db 文件流
+    private FileChannel fc;
+    // 文件锁
+    private Lock fileLock;
 
-    protected PageCacheImpl(int capacity) {
+    // db 文件的总页数
+    private AtomicInteger pageNumbers;
+
+    public PageCacheImpl(RandomAccessFile file, FileChannel fileChannel, int capacity) {
         super(capacity);
-        getting = new HashSet<>();
-        lock = new ReentrantLock();
+        long length = 0;
+        try {
+            length = file.length();
+        } catch (IOException e) {
+            Panic.panic(e);
+        }
+        this.getting = new HashSet<>();
+        this.file = file;
+        this.fc = fileChannel;
+        this.fileLock = new ReentrantLock();
+        this.lock = new ReentrantLock();
+        this.pageNumbers = new AtomicInteger((int)length / Const.PAGE_SIZE);
     }
 
-    // 获取页
+    // 获取页，但是不获取对该页的使用，上层自主加锁
     public Page get(int pgno) throws Exception {
         long key = pgno;
         while(true) {
@@ -40,6 +68,7 @@ public class PageCacheImpl extends LRUCache<Page> implements PageCache {
 
             Page page = super.get(key);
             if (page != null) {
+                lock.unlock();
                 // 请求页已经在缓存中了，直接返回
                 return page;
             }
@@ -78,11 +107,9 @@ public class PageCacheImpl extends LRUCache<Page> implements PageCache {
         return pg;
     }
 
-    // 释放页
+    // 无实现，线程自主解锁即可
     @Override
-    public void release(Page page) {
-
-    }
+    public void release(Page page) {}
 
     @Override
     public void close() {
@@ -93,11 +120,45 @@ public class PageCacheImpl extends LRUCache<Page> implements PageCache {
 
     @Override
     protected Page getForCache(long key) throws Exception {
-        return null;
+        int pgno = (int)key;
+        long offset = Util.pageOffset(pgno);
+
+        ByteBuffer buf = ByteBuffer.allocate(Const.PAGE_SIZE);
+        fileLock.lock();
+        try {
+            fc.position(offset);
+            fc.read(buf);
+        } catch(IOException e) {
+            Panic.panic(e);
+        }
+        fileLock.unlock();
+        return new PageImpl(pgno, buf.array());
     }
 
     @Override
-    protected void releaseForCache(Page obj) {
-
+    protected void releaseForCache(Page pg) {
+        if(pg.isDirty()) {
+            flush(pg);
+            pg.setDirty(false);
+        }
     }
+
+    private void flush(Page pg) {
+        int pgno = (int)pg.getPageNumber();
+        long offset = Util.pageOffset(pgno);
+
+        fileLock.lock();
+        try {
+            ByteBuffer buf = ByteBuffer.wrap(pg.getData());
+            fc.position(offset);
+            fc.write(buf);
+            fc.force(false);
+        } catch(IOException e) {
+            Panic.panic(e);
+        } finally {
+            fileLock.unlock();
+        }
+    }
+
+    
 }

@@ -12,5 +12,6 @@ public interface Cacheable {
     boolean writeLock();
     void writeUnlock();
     // 元素是否可释放，返回 true 时会对元素加写锁
-    boolean canRelease();
+    boolean canExpel();
+
 }
