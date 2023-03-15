@@ -76,7 +76,6 @@ public abstract class LRUCache<T extends Cacheable> implements CachePool<T> {
         cache.remove(node.key);
         removeNode(node);
         releaseForCache(node.value);
-        node.value.setExpel();
         count --;
     }
 

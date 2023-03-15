@@ -1,23 +1,23 @@
 package moe.ziyang.jupiter.backend.dm.page;
 
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class PageImpl implements Page {
 
+    private Lock operateLock;   // 保护变量
+
     private int pgno;
-    private Lock lock;
-    private AtomicInteger using;
+    private Lock writelock;
+    private int using;
 
     // 被驱逐位
     private boolean expelled;
 
     public PageImpl(int pgno) {
         this.pgno = pgno;
-        lock = new ReentrantLock();
-        using = new AtomicInteger();
+        writelock = new ReentrantLock();
+        operateLock = new ReentrantLock();
     }
 
     @Override
@@ -27,29 +27,54 @@ public class PageImpl implements Page {
 
     // 读写非元信息字段时加读锁
     @Override
-    public void readLock() {
-        using.incrementAndGet();
-    }
-
-    // 读写元信息字段时加写锁
-    @Override
-    public void writeLock() {
-        using.incrementAndGet();
-        lock.lock();
-    }
-
-    @Override
-    public boolean canRelease() {
-        using.incrementAndGet();
-        if (!lock.tryLock()) {
-            using.decrementAndGet();
+    public boolean readLock() {
+        operateLock.lock();
+        if (expelled) {
             return false;
         }
+        using ++;
+        operateLock.unlock();
         return true;
     }
 
     @Override
-    public void setExpel() {
-        expelled = true;
+    public void readUnlock() {
+        operateLock.lock();
+        using --;
+        operateLock.unlock();
+    }
+
+    // 读写元信息字段时加写锁
+    @Override
+    public boolean writeLock() {
+        operateLock.lock();
+        if (expelled) {
+            return false;
+        }
+        operateLock.unlock();
+        writelock.lock();
+        return true;
+    }
+
+    @Override
+    public void writeUnlock() {
+        writelock.unlock();
+    }
+
+    @Override
+    public boolean canRelease() {
+        operateLock.lock();
+        try {
+            if (using != 0) {
+                return false;
+            }
+            if (!writelock.tryLock()) {
+                return false;
+            }
+            expelled = true;
+            return true;
+        } finally {
+            operateLock.unlock();
+        }
     }
 }

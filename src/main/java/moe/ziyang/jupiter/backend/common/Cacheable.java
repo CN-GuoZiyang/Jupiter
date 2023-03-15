@@ -5,12 +5,12 @@ package moe.ziyang.jupiter.backend.common;
 // 空标识，无实际行为
 public interface Cacheable {
     long getKey();
-    // 获取元素读锁
-    void readLock();
-    // 获取元素写锁
-    void writeLock();
+    // 获取元素读锁，返回获取锁是否成功
+    boolean readLock();
+    void readUnlock();
+    // 获取元素写锁，返回获取锁是否成功
+    boolean writeLock();
+    void writeUnlock();
     // 元素是否可释放，返回 true 时会对元素加写锁
     boolean canRelease();
-    // 设置该元素已被驱逐
-    void setExpel();
 }
