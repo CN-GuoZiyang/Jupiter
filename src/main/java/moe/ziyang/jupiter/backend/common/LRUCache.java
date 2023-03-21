@@ -80,12 +80,17 @@ public abstract class LRUCache<T extends Cacheable> implements CachePool<T> {
 
             // 都不在，解锁，准备从源获取
             // 如果缓存已满，尝试驱逐一个元素
-            if (count == capacity) {
-                if (!tryExpelOne()) throw DBError.CacheFullException;
+            try {
+                if (count == capacity) {
+                    if (!tryExpelOne()) {
+                        throw DBError.CacheFullException;
+                    }
+                }
+                count ++;
+                getting.put(key, new Object());
+            } finally {
+                lock.unlock();
             }
-            count ++;
-            getting.put(key, new Object());
-            lock.unlock();
             break;
         }
 

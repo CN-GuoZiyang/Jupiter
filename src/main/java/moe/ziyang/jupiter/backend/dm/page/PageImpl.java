@@ -36,15 +36,17 @@ public class PageImpl implements Page {
     @Override
     public boolean canExpel() {
         operateLock.lock();
-        if (using != 0) {
+        try {
+            if (using != 0) {
+                return false;
+            }
+            if (!metadataLock.tryLock()) {
+                return false;
+            }
+            return true;
+        } finally {
             operateLock.unlock();
-            return false;
         }
-        if (!metadataLock.tryLock()) {
-            operateLock.unlock();
-            return false;
-        }
-        return true;
     }
 
     @Override
