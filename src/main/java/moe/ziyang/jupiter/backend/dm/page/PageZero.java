@@ -2,7 +2,6 @@ package moe.ziyang.jupiter.backend.dm.page;
 
 import moe.ziyang.jupiter.backend.dm.common.Const;
 import moe.ziyang.jupiter.backend.dm.common.Util;
-import moe.ziyang.jupiter.common.Panic;
 
 import java.util.Arrays;
 
@@ -38,12 +37,12 @@ public class PageZero extends PageImpl {
     }
 
     private void setInitVC() {
-        setDirty(true);
+        setDirty();
         System.arraycopy(Util.randomBytes(VC_LENGTH), 0, data, INIT_VC_OFFSET, VC_LENGTH);
     }
 
     public void setCloseVC() {
-        setDirty(true);
+        setDirty();
         System.arraycopy(data, INIT_VC_OFFSET, data, CLOSE_VC_OFFSET, VC_LENGTH);
     }
 
@@ -52,5 +51,4 @@ public class PageZero extends PageImpl {
         byte[] closeVC = Arrays.copyOfRange(data, CLOSE_VC_OFFSET, CLOSE_VC_OFFSET+VC_LENGTH);
         return Arrays.equals(initVC, closeVC);
     }
-
 }
