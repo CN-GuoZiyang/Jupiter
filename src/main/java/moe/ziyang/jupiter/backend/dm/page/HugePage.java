@@ -6,6 +6,7 @@ public class HugePage extends PageAllocatable {
     }
 
     public static boolean IsHugePage(byte[] raw) {
-        return (raw[0] & (1 << 7)) != 0;
+        // 第一位为 1
+        return (raw[0] & 1) == 1;
     }
 }
