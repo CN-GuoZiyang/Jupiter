@@ -96,7 +96,7 @@ public class BuddyPage extends PageAllocatable {
                 BuddyNode right = currentLevelNodes.get(i+1);
                 BuddyNode parent = left.parent;
 
-                parent.free = parent.free == 0 ? 0 : left.free + right.free;
+                parent.free = parent.free == 0 ? 0 : (Math.max(left.free, right.free));
 
                 nextLevelNodes.add(parent);
             }
