@@ -1,9 +1,12 @@
 package moe.ziyang.jupiter.backend.dm.page;
 
 import moe.ziyang.jupiter.backend.dm.common.Const;
+import moe.ziyang.jupiter.common.DBError;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static moe.ziyang.jupiter.common.DBError.PageNoFreeSpaceException;
 
 public class BuddyPage extends PageAllocatable {
 
@@ -13,6 +16,7 @@ public class BuddyPage extends PageAllocatable {
     public BuddyPage(int pgno) {
         super(pgno, getInitRaw());
         initBuddyTree();
+        setDirty();
     }
 
     public BuddyPage(int pgno, byte[] data) {
@@ -25,7 +29,12 @@ public class BuddyPage extends PageAllocatable {
         return (raw[0] & 1) == 0;
     }
 
-    public static byte[] getInitRaw() {
+    // 获取最大可单次分配的块数
+    public int getMaxFree() {
+        return root.free;
+    }
+
+    private static byte[] getInitRaw() {
         byte[] bytes = new byte[Const.PAGE_SIZE];
         // 第 0 个字节的第一位为 0，无需设置
         // 初始化 Buddy 树，设置初始两个块（存放 Buddy 树）为占用
@@ -33,7 +42,9 @@ public class BuddyPage extends PageAllocatable {
         return bytes;
     }
 
-    private class BuddyNode {
+
+
+    private static class BuddyNode {
         int level;          // 该节点位于第几层（从 0 开始）
         int index;          // 该节点位于该层第几个（从 0 开始）
         int free;           // 该节点对应的区域最大可分配块数
@@ -96,12 +107,107 @@ public class BuddyPage extends PageAllocatable {
                 BuddyNode right = currentLevelNodes.get(i+1);
                 BuddyNode parent = left.parent;
 
-                parent.free = parent.free == 0 ? 0 : (Math.max(left.free, right.free));
+                parent.free = parent.free == 0
+                        ? 0
+                        : (left.free + right.free == parent.getSpace() ? parent.getSpace() : Math.max(left.free, right.free));
 
                 nextLevelNodes.add(parent);
             }
             currentLevelNodes = nextLevelNodes;
             nextLevelNodes = new ArrayList<>();
+        }
+    }
+
+    // 将 Buddy Tree 序列化到
+    private void serializeBuddyTree() {
+        byte[] data = getData();
+        // 从每个叶节点向上读取到第一个空闲块为 0 的节点，将对应 bit 设置为 1
+        for (BuddyNode node : leafNodes) {
+            BuddyNode current = node;
+            while (current.free != 0 && current != root) {
+                int bitIndex = (1 << current.level) + current.index;
+                // 对应位设置为 0
+                data[bitIndex >> 3] &= ~(1 << (bitIndex & 0x7));
+                current = current.parent;
+            }
+            if (current.free == 0) {
+                int bitIndex = (1 << current.level) + current.index;
+                // 对应位设置为 1
+                data[bitIndex >> 3] |= (1 << (bitIndex & 0x7));
+            }
+            current = current.parent;
+            while (current != null) {
+                int bitIndex = (1 << current.level) + current.index;
+                // 对应位设置为 0
+                data[bitIndex >> 3] &= ~(1 << (bitIndex & 0x7));
+                current = current.parent;
+            }
+        }
+        setDirty();
+    }
+
+    // 使用 Buddy Tree 分配 block 长度的空间
+    // block 应为 2 的幂
+    // 返回页内偏移
+    private int allocateBlock(int block) throws DBError {
+        if (root.free < block) {
+            throw PageNoFreeSpaceException;
+        }
+
+        // 定位到恰好满足的节点
+        BuddyNode current = root;
+        while (current.free != block) {
+            int left = current.left.free;
+            int right = current.right.free;
+            // 优先选择最小的满足条件的分叉
+            if (left <= right) {
+                current = left >= block ? current.left : current.right;
+            } else {
+                current = right >= block ? current.right : current.left;
+            }
+        }
+
+        // 对应位设置为 1
+        int bitIndex = (1 << current.level) + current.index;
+        data[bitIndex >> 3] |= (1 << (bitIndex & 0x7));
+        // 该块起始的页内偏移
+        int offset = (1 << (8 - current.level)) * current.index;
+
+        // 向上修改父节点的可分配值
+        current = current.parent;
+        while (current != null) {
+            current.free = Math.max(current.left.free, current.right.free);
+            current = current.parent;
+        }
+
+        setDirty();
+        return offset;
+    }
+
+    // 给定页内偏移，释放块
+    private void freeBlock(int offset) {
+        // 偏移对应的叶子节点
+        BuddyNode current = leafNodes.get(offset / Const.BUDDY_BLOCK_SIZE);
+
+        // 向上找到第一个可用块为 0 的节点
+        while (current.free != 0) {
+            current = current.parent;
+        }
+
+        // 修改节点为未使用
+        current.free = current.getSpace();
+        int bitIndex = (1 << current.level) + current.index;
+        data[bitIndex >> 3] &= ~(1 << (bitIndex & 0x7));
+
+        // 继续向上回溯，合并连续空闲空间
+        current = current.parent;
+        while (current != null) {
+            BuddyNode left = current.left;
+            BuddyNode right = current.right;
+            current.free = left.free + right.free == current.getSpace()
+                    ? current.getSpace()
+                    : Math.max(left.free, right.free);
+            current = current.parent;
         }
     }
 
