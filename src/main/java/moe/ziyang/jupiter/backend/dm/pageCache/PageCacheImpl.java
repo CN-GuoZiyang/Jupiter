@@ -39,6 +39,11 @@ public class PageCacheImpl extends LRUCache<Page> implements PageCache {
         this.pageNumbers = new AtomicInteger((int)length / Const.PAGE_SIZE);
     }
 
+    @Override
+    public int getPageNumber() {
+        return pageNumbers.get();
+    }
+
     // 获取页，但是不获取对该页的使用，上层自主加锁
     @Override
     public Page get(int pgno) throws DBError {
@@ -86,5 +91,4 @@ public class PageCacheImpl extends LRUCache<Page> implements PageCache {
         }
     }
 
-    
 }

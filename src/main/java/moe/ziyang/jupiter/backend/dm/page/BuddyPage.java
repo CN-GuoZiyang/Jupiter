@@ -8,7 +8,7 @@ import java.util.List;
 
 import static moe.ziyang.jupiter.common.DBError.PageNoFreeSpaceException;
 
-public class BuddyPage extends PageAllocatable {
+public class BuddyPage extends CommonPage {
 
     private BuddyNode root;                 // Buddy Tree 根节点
     private List<BuddyNode> leafNodes;      // Buddy Tree 叶子节点
@@ -30,7 +30,7 @@ public class BuddyPage extends PageAllocatable {
     }
 
     // 获取最大可单次分配的块数
-    public int getMaxFree() {
+    public int getMaxFreeBlock() {
         return root.free;
     }
 
@@ -41,8 +41,6 @@ public class BuddyPage extends PageAllocatable {
         bytes[32] |= 0X03;
         return bytes;
     }
-
-
 
     private static class BuddyNode {
         int level;          // 该节点位于第几层（从 0 开始）
@@ -118,34 +116,6 @@ public class BuddyPage extends PageAllocatable {
         }
     }
 
-    // 将 Buddy Tree 序列化到
-    private void serializeBuddyTree() {
-        byte[] data = getData();
-        // 从每个叶节点向上读取到第一个空闲块为 0 的节点，将对应 bit 设置为 1
-        for (BuddyNode node : leafNodes) {
-            BuddyNode current = node;
-            while (current.free != 0 && current != root) {
-                int bitIndex = (1 << current.level) + current.index;
-                // 对应位设置为 0
-                data[bitIndex >> 3] &= ~(1 << (bitIndex & 0x7));
-                current = current.parent;
-            }
-            if (current.free == 0) {
-                int bitIndex = (1 << current.level) + current.index;
-                // 对应位设置为 1
-                data[bitIndex >> 3] |= (1 << (bitIndex & 0x7));
-            }
-            current = current.parent;
-            while (current != null) {
-                int bitIndex = (1 << current.level) + current.index;
-                // 对应位设置为 0
-                data[bitIndex >> 3] &= ~(1 << (bitIndex & 0x7));
-                current = current.parent;
-            }
-        }
-        setDirty();
-    }
-
     // 使用 Buddy Tree 分配 block 长度的空间
     // block 应为 2 的幂
     // 返回页内偏移
@@ -209,6 +179,25 @@ public class BuddyPage extends PageAllocatable {
                     : Math.max(left.free, right.free);
             current = current.parent;
         }
+    }
+
+    @Override
+    public int allocate(int size) {
+        int block = size / Const.BUDDY_BLOCK_SIZE;
+        // from Hashmap
+        int n = block - 1;
+        n |= n >>> 1;
+        n |= n >>> 2;
+        n |= n >>> 4;
+        n |= n >>> 8;
+        n |= n >>> 16;
+        block = n < 0 ? 1 : n + 1;
+        return allocateBlock(block);
+    }
+
+    @Override
+    public void free(int offset) {
+        freeBlock(offset);
     }
 
 }

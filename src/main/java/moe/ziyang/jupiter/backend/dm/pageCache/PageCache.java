@@ -6,5 +6,6 @@ import moe.ziyang.jupiter.common.DBError;
 public interface PageCache {
 
     Page get(int pgno) throws DBError;
+    int getPageNumber();
 
 }
