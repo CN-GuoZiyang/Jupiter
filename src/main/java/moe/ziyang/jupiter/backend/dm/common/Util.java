@@ -5,7 +5,7 @@ import java.util.Random;
 
 public class Util {
 
-    public static long pageOffset(int pgno) {
+    public static int pageOffset(int pgno) {
         return pgno * Const.PAGE_SIZE;
     }
 

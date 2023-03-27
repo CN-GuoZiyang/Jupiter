@@ -43,7 +43,7 @@ public class PageFree extends PageImpl {
     }
 
     // 获取一个空闲页号，并占用
-    public int getFreePage() throws Exception {
+    public int getFreePage() {
         writeLock.lock();
         try {
             for (int i = 2; i < Const.PAGE_SIZE; i ++) {
@@ -62,6 +62,13 @@ public class PageFree extends PageImpl {
             writeLock.unlock();
         }
         throw DBError.NoFreePageException;
+    }
+
+    // 检查某页是否是空闲
+    public boolean checkIsFreePage(int pgno) {
+        int byteNum = pgno / 8;
+        int bitNum = pgno % 8;
+        return (data[byteNum] & (1 << (7 - bitNum))) == 0;
     }
 
 }

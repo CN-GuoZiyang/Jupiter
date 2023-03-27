@@ -120,13 +120,13 @@ public abstract class LRUCache<T extends Cacheable> implements CachePool<T> {
     }
 
     @Override
-    public void release(T value) {
-        innerRelease(cache.get(value.getKey()));
+    public void release(T value, boolean expel) {
+        innerRelease(cache.get(value.getKey()), expel);
     }
 
     @Override
-    public void release(long key) {
-        innerRelease(cache.get(key));
+    public void release(long key, boolean expel) {
+        innerRelease(cache.get(key), expel);
     }
 
     @Override
@@ -153,9 +153,12 @@ public abstract class LRUCache<T extends Cacheable> implements CachePool<T> {
     }
 
     // 释放元素所有权
-    private void innerRelease(Node node) {
+    private void innerRelease(Node node, boolean expel) {
         if (node == null) return;
         node.value.returnUsage();
+        if (expel && node.value.canExpel()) {
+            expel(node);
+        }
     }
 
     // 尝试驱逐一个缓存
