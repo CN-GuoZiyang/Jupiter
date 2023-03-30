@@ -3,8 +3,21 @@ package moe.ziyang.jupiter.backend.dm.page;
 import moe.ziyang.jupiter.backend.dm.common.Const;
 
 public class HugePage extends CommonPage {
+
+    public HugePage(int pgno) {
+        super(pgno, getInitRaw());
+        setDirty();
+    }
+
     public HugePage(int pgno, byte[] data) {
         super(pgno, data);
+    }
+
+    private static byte[] getInitRaw() {
+        byte[] bytes = new byte[Const.PAGE_SIZE];
+        // 第 0 个字节的第一位为 1
+        bytes[0] |= 1;
+        return bytes;
     }
 
     public static boolean IsHugePage(byte[] raw) {

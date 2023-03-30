@@ -90,4 +90,12 @@ public class PageImpl implements Page {
         operateLock.unlock();
     }
 
+    public void lockMetadata() {
+        metadataLock.lock();
+    }
+
+    public void unlockMetadata() {
+        metadataLock.unlock();
+    }
+
 }

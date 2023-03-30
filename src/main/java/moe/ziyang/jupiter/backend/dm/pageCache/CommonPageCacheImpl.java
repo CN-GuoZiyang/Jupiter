@@ -4,7 +4,9 @@ import moe.ziyang.jupiter.backend.common.LRUCache;
 import moe.ziyang.jupiter.backend.dm.common.Const;
 import moe.ziyang.jupiter.backend.dm.common.Util;
 import moe.ziyang.jupiter.backend.dm.fileManager.FileManager;
+import moe.ziyang.jupiter.backend.dm.page.BuddyPage;
 import moe.ziyang.jupiter.backend.dm.page.CommonPage;
+import moe.ziyang.jupiter.backend.dm.page.HugePage;
 import moe.ziyang.jupiter.common.DBError;
 
 public class CommonPageCacheImpl extends LRUCache<CommonPage> implements CommonPageCache {
@@ -41,6 +43,20 @@ public class CommonPageCacheImpl extends LRUCache<CommonPage> implements CommonP
         int pgno = pg.getPageNumber();
         int offset = Util.pageOffset(pgno);
         fm.write(pg.getData(), offset);
+    }
+
+    // 创建新 Buddy 页并写入
+    @Override
+    public int newBuddyPage(int pgno) {
+        flush(new BuddyPage(pgno));
+        return pgno;
+    }
+
+    // 创建新 Huge 页并写入
+    @Override
+    public int newHugePage(int pgno) {
+        flush(new HugePage(pgno));
+        return pgno;
     }
 
 }

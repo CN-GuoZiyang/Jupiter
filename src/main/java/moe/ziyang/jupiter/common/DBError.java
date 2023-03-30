@@ -22,4 +22,5 @@ public class DBError extends RuntimeException {
     public static final DBError CacheFullException = new DBError("Cache is full!");
     public static final DBError NoFreePageException = new DBError("No free page found!");
     public static final DBError PageNoFreeSpaceException = new DBError("Page has no free space!");
+    public static final DBError DataTooLargeException = new DBError("Insert data too large!");
 }

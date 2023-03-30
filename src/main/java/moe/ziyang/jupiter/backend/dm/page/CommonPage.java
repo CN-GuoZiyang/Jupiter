@@ -15,6 +15,12 @@ public abstract class CommonPage extends PageImpl {
         return new HugePage(pgno, raw);
     }
 
+    public int insert(byte[] bytes) {
+        int off = allocate(bytes.length);
+        System.arraycopy(bytes, 0, data, off, bytes.length);
+        return off;
+    }
+
     // 根据给定字节大小分配空间，返回分配空间起始位置偏移
     public abstract int allocate(int size);
     // 释放以 offset 为起始的空间

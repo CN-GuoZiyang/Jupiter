@@ -192,12 +192,22 @@ public class BuddyPage extends CommonPage {
         n |= n >>> 8;
         n |= n >>> 16;
         block = n < 0 ? 1 : n + 1;
-        return allocateBlock(block);
+        lockMetadata();
+        try {
+            return allocateBlock(block);
+        } finally {
+            unlockMetadata();
+        }
     }
 
     @Override
     public void free(int offset) {
-        freeBlock(offset);
+        lockMetadata();
+        try {
+            freeBlock(offset);
+        } finally {
+            unlockMetadata();
+        }
     }
 
 }

@@ -7,5 +7,7 @@ import moe.ziyang.jupiter.common.DBError;
 public interface CommonPageCache extends CachePool<CommonPage> {
 
     CommonPage get(int pgno) throws DBError;
+    int newBuddyPage(int pgno);
+    int newHugePage(int pgno);
 
 }

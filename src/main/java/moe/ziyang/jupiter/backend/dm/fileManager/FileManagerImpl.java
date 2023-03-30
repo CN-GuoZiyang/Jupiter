@@ -15,7 +15,7 @@ public class FileManagerImpl implements FileManager {
     private RandomAccessFile file;
     private FileChannel fc;
     // db 文件的总页数
-    private AtomicInteger pageNumbers;
+    private int pageNumbers;
 
     public FileManagerImpl(RandomAccessFile file, FileChannel fileChannel) {
         this.file = file;
@@ -26,13 +26,13 @@ public class FileManagerImpl implements FileManager {
         } catch (IOException e) {
             Panic.panic(e);
         }
-        this.pageNumbers = new AtomicInteger((int)length / Const.PAGE_SIZE);
+        this.pageNumbers = (int)length / Const.PAGE_SIZE;
     }
 
 
     @Override
     public int getPageNumber() {
-        return pageNumbers.get();
+        return pageNumbers;
     }
 
     @Override
@@ -57,5 +57,14 @@ public class FileManagerImpl implements FileManager {
         } catch(IOException e) {
             Panic.panic(e);
         }
+        if (this.pageNumbers < offset/Const.PAGE_SIZE+1) {
+            this.pageNumbers = offset/Const.PAGE_SIZE+1;
+        }
     }
+
+    @Override
+    public synchronized int newPage() {
+        return ++this.pageNumbers;
+    }
+
 }
